@@ -6,6 +6,7 @@ import numpy as np
 from tqdm import tqdm
 '''
 TODO: 
+add comments
 add runtime displayer
 give it $1000
 make triggers for when position changes
