@@ -5,10 +5,11 @@ import os
 import numpy as np
 from tqdm import tqdm
 import datetime
-
+import csv
 '''
 TODO:
-log trades onto txt file
+Change sma code, dont calculate and display until full range is captured. (at the start)
+log trades onto xl file
 introduce commission into trades
 epsilon: large enough difference for trades
 calculate moving average gradients
@@ -17,6 +18,16 @@ startTime = datetime.datetime.now()
 cap = 1000
 
 wma = []
+
+# Countdown clock
+def countdown(t):
+    while t:
+        mins, secs = divmod(t,60)
+        timeformat = '{:02d}:{:02d}'.format(mins, secs)
+        print(timeformat, end='\r')
+        time.sleep(1)
+        t -= 1
+    print("New data entry")
 
 # Function to scrape price from website
 def get_price():
@@ -70,27 +81,26 @@ def decide_position(shorter_ma,longer_ma, prev_position=2):
 
 def trade_long(cash, price):
     btc = cash/price
-    print("bought btc")
+    print("Bought BTC")
     return btc
 
 def trade_short(btc, price):
     cash = btc * price
-    print("sold btc")
+    print("Sold BTC")
     return cash
 
 def make_trade(position_history, cap, price):
-    #long_to_short = False
-    #short_to_long = False
 
     if position_history[0] != position_history[1]:
+
         if (position_history[0] == 1) and (position_history[1] == 2): # it goes 1 --> 2
-            #long_to_short = True
             cap = trade_short(cap,price)
             return cap
+
         elif (position_history[0] == 2) and (position_history[1] == 1): # it goes 2 --> 1
-            #short_to_long = True
             cap = trade_long(cap,price)
             return cap
+
     elif position_history[0] == position_history[1]:
         # No trade
         return cap
@@ -102,6 +112,12 @@ def display_assets(position, cap, price):
         print("Total capital: {} USD, equivalent to {} BTC".format(np.round(cap,2), np.round(cap/price,7)))
 
 
+def write_to_excel():
+    data_to_write = [str(datetime.datetime.now()),"buy/sell action",'USD equ..']
+    with open('tradebook.csv', 'a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(data_to_write)
+
 sma = []
 sma2 = []
 position_history = [2]
@@ -109,33 +125,43 @@ position_history = [2]
 while True:
     os.system('cls')
     currentTime = datetime.datetime.now()
-    price = get_price()
-
-    sma = get_sma(sma, price,5)
-    sma_price = np.round(np.mean(sma),2)
-    sma2 = get_sma(sma2, price,10)
-    sma2_price = np.round(np.mean(sma2),2)
-    wma_price = get_wma10(sma2)
-
     print('Started program at: {}, current time: {}'.format(startTime.strftime("%Y-%m-%d %H:%M:%S"), currentTime.strftime("%Y-%m-%d %H:%M:%S")))
+  
+    price = get_price()
     print('Current Price: ${}'.format(price))
-    print('sma5: {}'.format(sma_price))
-    print('sma10: {}'.format(sma2_price))
-    print('wma10: {}'.format(wma_price))
 
-    position = decide_position(sma_price, sma2_price, position_history[-1])
+    
+    #write_to_excel()
 
-    position_history.append(position)
-    if len(position_history)>2:
-        position_history.pop(0)
-    print(position_history)
+    SHORT_SMA_RANGE = 10
+    LONG_SMA_RANGE = 30
+    
+    sma = get_sma(sma, price, SHORT_SMA_RANGE)
+    if len(sma) ==  SHORT_SMA_RANGE:
+        sma_price = np.round(np.mean(sma),2)
+        wma_price = get_wma10(sma)
 
-    # Start making trades after collecting 10 data points
-    if len(sma2) == 10:
+        print('sma10: {}'.format(sma_price))
+        print('wma10: {}'.format(wma_price))
+
+        
+    sma2 = get_sma(sma2, price, LONG_SMA_RANGE)
+    if len(sma2) == LONG_SMA_RANGE:
+        sma2_price = np.round(np.mean(sma2),2)
+        print('sma30: {}'.format(sma2_price))
+        
+    if len(sma2) == LONG_SMA_RANGE:
+        position = decide_position(wma_price, sma2_price, position_history[-1])
+
+        position_history.append(position)
+        if len(position_history)>2:
+            position_history.pop(0)
+        
         cap = make_trade(position_history, cap, price)
         display_assets(position, cap, price)
+    else:
+        print("Not enough data to make decision and trades. Gathering data.")
 
     # Refresh every
-    for i in tqdm(range(5)):
-        time.sleep(1)
+    countdown(60)
 
