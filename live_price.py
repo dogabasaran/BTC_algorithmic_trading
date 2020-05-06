@@ -8,11 +8,9 @@ import datetime
 import csv
 '''
 TODO:
-Change sma code, dont calculate and display until full range is captured. (at the start)
-log trades onto xl file
-introduce commission into trades
 epsilon: large enough difference for trades
 calculate moving average gradients
+move MA calvulations and countdown/get_price into separate files
 '''
 startTime = datetime.datetime.now()
 cap = 1000
@@ -79,26 +77,30 @@ def decide_position(shorter_ma,longer_ma, prev_position=2):
     return position
 
 
-def trade_long(cash, price):
-    btc = cash/price
+def trade_long(cash, price, commission=0):
+    btc = (cash/price)*(1-commission)
     print("Bought BTC")
+    trade_info = [datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S"), "Bought {} BTC at {} USD".format(np.round(btc,7), price), "~ {} USD".format(np.round(cash,2))]
+    write_to_excel(trade_info)
     return btc
 
-def trade_short(btc, price):
-    cash = btc * price
+def trade_short(btc, price, commission=0):
+    cash = (btc * price)*(1-commission)
     print("Sold BTC")
+    trade_info = [datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S"), "Sold {} BTC at {} USD".format(np.round(btc,7), price), "~ {} USD".format(np.round(cash,2))]
+    write_to_excel(trade_info)
     return cash
 
-def make_trade(position_history, cap, price):
+def make_trade(position_history, cap, price, commission_rate):
 
     if position_history[0] != position_history[1]:
 
         if (position_history[0] == 1) and (position_history[1] == 2): # it goes 1 --> 2
-            cap = trade_short(cap,price)
+            cap = trade_short(cap,price, commission_rate)
             return cap
 
         elif (position_history[0] == 2) and (position_history[1] == 1): # it goes 2 --> 1
-            cap = trade_long(cap,price)
+            cap = trade_long(cap,price, commission_rate)
             return cap
 
     elif position_history[0] == position_history[1]:
@@ -112,8 +114,8 @@ def display_assets(position, cap, price):
         print("Total capital: {} USD, equivalent to {} BTC".format(np.round(cap,2), np.round(cap/price,7)))
 
 
-def write_to_excel():
-    data_to_write = [str(datetime.datetime.now()),"buy/sell action",'USD equ..']
+def write_to_excel(data_to_write):
+    #data_to_write = [str(datetime.datetime.now()),"buy/sell action",'USD equ..']
     with open('tradebook.csv', 'a', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(data_to_write)
@@ -121,6 +123,8 @@ def write_to_excel():
 sma = []
 sma2 = []
 position_history = [2]
+write_to_excel(["Date", "Action","USD Equivalence"])
+BINANCE_COMMISSION_RATE = 0.00075
 
 while True:
     os.system('cls')
@@ -129,9 +133,6 @@ while True:
   
     price = get_price()
     print('Current Price: ${}'.format(price))
-
-    
-    #write_to_excel()
 
     SHORT_SMA_RANGE = 10
     LONG_SMA_RANGE = 30
@@ -157,11 +158,11 @@ while True:
         if len(position_history)>2:
             position_history.pop(0)
         
-        cap = make_trade(position_history, cap, price)
+        cap = make_trade(position_history, cap, price, BINANCE_COMMISSTION_RATE)
         display_assets(position, cap, price)
     else:
         print("Not enough data to make decision and trades. Gathering data.")
 
     # Refresh every
-    countdown(60)
+    countdown(10)
 
