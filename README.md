@@ -2,3 +2,5 @@
 Simple web scraper for btc price, calculates simple and weighted moving average and decides on short-long position
 
 Can simulate using given capital and commission rates.
+
+(Made for fun, intent for use is not advised.)
